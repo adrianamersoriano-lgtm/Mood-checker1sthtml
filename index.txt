@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mood Checker — Happy or Sad</title>
+  <style>
+    :root{
+      --bg:#f0f6ff;
+      --card:#ffffff;
+      --muted:#61707a;
+      --happy:#ffd166;
+      --sad:#9ad0ff;
+      --accent:#7c3aed;
+      font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#e9f2ff);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
+
+    .wrap{width:100%;max-width:760px;background:var(--card);border-radius:14px;box-shadow:0 10px 30px rgba(16,24,40,0.12);padding:2rem}
+    header{display:flex;align-items:center;justify-content:space-between}
+    h1{margin:0;font-size:1.25rem}
+    p.lead{color:var(--muted);margin-top:.5rem}
+
+    .grid{display:grid;grid-template-columns:1fr 320px;gap:1.25rem;margin-top:1.25rem}
+
+    /* Mood face */
+    .face-card{display:flex;flex-direction:column;align-items:center;gap:1rem;padding:1.25rem;border-radius:12px;background:linear-gradient(180deg,#fff, #fbfdff);border:1px solid rgba(16,24,40,0.04)}
+    .face{width:200px;height:200px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;transition:all 450ms cubic-bezier(.2,.9,.25,1)}
+    .eye{width:18px;height:18px;background:#122;position:absolute;border-radius:50%;top:72px;left:68px;transition:transform 260ms}
+    .eye.r{left:auto;right:68px}
+    .mouth{position:absolute;bottom:62px;height:36px;width:120px;border-radius:999px;overflow:hidden;display:flex;align-items:center;justify-content:center;transition:all 380ms}
+    .mouth .line{height:8px;width:80%;border-radius:999px;background:#122;transform-origin:center;transition:transform 380ms}
+
+    /* happy */
+    .happy .face{background:linear-gradient(180deg,var(--happy),#ffdba6)}
+    .happy .mouth .line{transform:translateY(6px) rotate(6deg);}
+    .happy .eye{transform:translateY(-6px)}
+
+    /* sad */
+    .sad .face{background:linear-gradient(180deg,#bcdffd,var(--sad));}
+    .sad .mouth .line{transform:translateY(-6px) rotate(-180deg) scaleY(.8)}
+    .sad .eye{transform:translateY(6px)}
+
+    /* neutral */
+    .neutral .face{background:linear-gradient(180deg,#fff,#f6fbff)}
+    .neutral .mouth .line{transform:translateY(0) rotate(0) scaleY(1)}
+
+    /* Controls */
+    .controls{padding:1rem;border-radius:12px;background:linear-gradient(180deg,#fff,#fbfbff);border:1px solid rgba(16,24,40,0.04)}
+    .buttons{display:flex;gap:.5rem;margin-top:.5rem}
+    button{padding:.65rem 1rem;border-radius:10px;border:none;background:#f1f5f9;color:#062;cursor:pointer;font-weight:600}
+    .btn-happy{background:var(--happy)}
+    .btn-sad{background:var(--sad)}
+    .btn-neutral{background:#e6eef8;color:#072}
+
+    input[type="text"]{width:100%;padding:.6rem;border-radius:8px;border:1px solid rgba(16,24,40,0.06)}
+    .note{font-size:.9rem;color:var(--muted);margin-top:.5rem}
+
+    footer{margin-top:1rem;color:var(--muted);font-size:.9rem;text-align:center}
+
+    @media (max-width:840px){
+      .grid{grid-template-columns:1fr}
+      .face{width:170px;height:170px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Mood Checker</h1>
+        <p class="lead">Type or choose — the face will tell whether it's happy or sad.</p>
+      </div>
+      <div style="text-align:right;color:var(--muted)">Instant mood detection • playful demo</div>
+    </header>
+
+    <div class="grid">
+      <!-- left: controls -->
+      <section class="controls" aria-label="Controls">
+        <label for="moodInput">Tell me how you feel (e.g. "I'm happy" or "feeling sad")</label>
+        <input id="moodInput" type="text" placeholder="Type here..." aria-describedby="hint" />
+        <div class="buttons">
+          <button class="btn-happy" id="happyBtn" type="button">😊 Happy</button>
+          <button class="btn-sad" id="sadBtn" type="button">😢 Sad</button>
+          <button class="btn-neutral" id="neutralBtn" type="button">😐 Neutral</button>
+        </div>
+        <div class="note" id="hint">Tip: type words like "happy", "joy", "sad", "down" or click an emoji button.</div>
+      </section>
+
+      <!-- right: face -->
+      <aside class="face-card neutral" id="faceCard" role="img" aria-label="Neutral face">
+        <div class="face" id="face">
+          <div class="eye l"></div>
+          <div class="eye r"></div>
+          <div class="mouth"><div class="line"></div></div>
+        </div>
+        <div id="moodText" style="font-weight:700">Neutral</div>
+        <div style="color:var(--muted);font-size:.95rem">Detected mood will appear here.</div>
+      </aside>
+    </div>
+
+    <footer>Made with ❤️ — try typing "I'm very happy today" or "feeling sad"</footer>
+  </div>
+
+  <script>
+    // Simple keyword-based mood detection
+    const happyWords = ['happy','joy','glad','good','great','awesome','excited','love','amazing','fantastic']
+    const sadWords = ['sad','down','unhappy','depressed','bad','lonely','upset','angry','miserable']
+
+    const input = document.getElementById('moodInput')
+    const faceCard = document.getElementById('faceCard')
+    const moodText = document.getElementById('moodText')
+
+    function detectMood(text){
+      if(!text || !text.trim()) return 'neutral'
+      const t = text.toLowerCase()
+      let happyScore = 0, sadScore = 0
+      happyWords.forEach(w=>{ if(t.includes(w)) happyScore++ })
+      sadWords.forEach(w=>{ if(t.includes(w)) sadScore++ })
+      if(happyScore > sadScore && happyScore>0) return 'happy'
+      if(sadScore > happyScore && sadScore>0) return 'sad'
+      // if both detected or none, choose neutral unless one clearly higher
+      return 'neutral'
+    }
+
+    function updateMood(mood){
+      faceCard.classList.remove('happy','sad','neutral')
+      faceCard.classList.add(mood)
+      faceCard.setAttribute('aria-label', mood + ' face')
+      moodText.textContent = mood.charAt(0).toUpperCase()+mood.slice(1)
+    }
+
+    input.addEventListener('input', e=>{
+      const mood = detectMood(e.target.value)
+      updateMood(mood)
+    })
+
+    document.getElementById('happyBtn').addEventListener('click', ()=>{
+      updateMood('happy')
+      input.value = 'I am happy :)'
+    })
+    document.getElementById('sadBtn').addEventListener('click', ()=>{
+      updateMood('sad')
+      input.value = 'Feeling sad'
+    })
+    document.getElementById('neutralBtn').addEventListener('click', ()=>{
+      updateMood('neutral')
+      input.value = ''
+    })
+
+    // accessibility: allow Enter to submit detection
+    input.addEventListener('keydown', e=>{ if(e.key === 'Enter') { e.preventDefault(); updateMood(detectMood(input.value)) } })
+  </script>
+</body>
+</html>
